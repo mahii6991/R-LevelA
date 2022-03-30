@@ -1,0 +1,209 @@
+---
+title: "MA331-Coursework"
+subtitle: "Text analytics of the Ted talks by Dan Ariely and Camilla Seaman"
+author: RAJPO65607-MAHENDRA-RAJPOOT
+output: html_document
+---
+
+```{r , include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE)
+
+library(dsEssex)#loading the dataset from the library
+library(tidytext)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(tidyr)
+library(tidyverse)
+```
+
+## Introduction
+Here we are analyzing the data set for the two ted speaker Dan Ariely and Camille Seaman.I am going to call them speaker 1 and speaker 2 respectively. The speaker 1 has a domain of behavioral economics which deals with the topic of rational decision making in our day to day life.Speaker 2 is the native Indian american photographer. After being inspired by her father at a very young age, she turned her attention to cloud photography and nature photography. After watching the speeches of both speakers, I found the language of the speaker 1 to be very revealing, factual and educational. In addition, the language of the speaker 2 is very tranquil, relaxed and inspiring. The lectures for the first speaker took place in February 2009, March 2011 and March 2015, and those for the second speaker took place in June 2011 and February 2013. In this report we will try to analyze the how much sentiment they put behind their talks and are those sentiments change according to the topics of their talks or they remain the same? we will also try to find out the positive seniments in their talks.
+
+
+## Methods
+
+To start with the sentiment analysis, first we need to filter out the speakers from the **"ted_talks"** dataset. Then with the help of **tidytext** library.we will start to unnest tokens and break down in whole transcript into one single word form . we will take this unnested token and filter out the common words with the help of **get_stopwords()** which include the collection of most common words we use in our daily life. After removing the common words, we will be using the sentiment lexicon which will provide the sentiment to each words, in order to analyze the sentiment behind the word. we will then group by remaining text with the help of **dyplr** and **tidyr** library.then we will use the **ggplot2** library for the purpose of visualization.
+
+## Results
+```{r warning=FALSE, message=FALSE}
+#loading the dataset
+data(ted_talks)
+
+```
+
+
+```{r include=FALSE}
+#filtering the speaker
+My_data <- ted_talks %>%
+  filter(speaker %in% c("Dan Ariely", "Camille Seaman")) #selecting the speaker from the ted_talks dataset
+
+```
+
+```{r include=FALSE}
+#unnesting the tokens and in order to find our which kind of words are being used by both the speaker and in which frequency according to their topics
+tidy_data <- My_data %>%
+  unnest_tokens(word,text)
+```
+
+```{r include=FALSE }
+tidy_data <- tidy_data %>%
+  select(speaker,word,headline) #using the dyplr library selecting the variables speaker, word and headline
+```
+
+```{r include=FALSE}
+tidy_data_without_stop <- tidy_data %>%
+  anti_join(stop_words) #after unnesting the tokens removing the stopwords from the dataset
+
+```
+
+```{r include=FALSE}
+count_tidy_data <- tidy_data_without_stop %>%
+  count(word, sort = TRUE) #counting the number of words after removing the stopwords
+
+
+```
+
+
+```{r,echo=FALSE,message=FALSE,fig.align='center' }
+
+tidy_data %>%
+  anti_join(get_stopwords()) %>%         # remove stop words
+  count(word, sort = TRUE) %>%      # count words & sort them by n (the counts)
+  slice_max(n, n = 20) %>%          # select the top 20 rows ordered by n (redundant because they are already sorted, but this argument is mandatory for this function)
+  mutate(word = reorder(word, n)) %>%     # To convert the `word` from character into factor to maintain the order. Otherwise, ggplot2 would plot them in an alphabetic order!
+  ggplot(aes(n,word)) + geom_col()  
+
+
+```
+As we can observe form the above frequency plot that , the most of words used in the text for both the speaker is **people, think , said ,group and cheating** and less dominant are **like , now , write , something and us**. This is because the speaker 1 has the longer amount of ted talks than the speaker2 and also we are analyzing 3 talks of speaker1 and only 2 talks of speaker2. so the dominant word are of speaker1 than speaker2.
+
+
+```{r,echo=FALSE,message=FALSE,fig.align='center' }
+#plotting the graph for word frequency graph for both the speaker using the ggplot library
+
+tidy_data %>%
+  filter(speaker %in% c("Dan Ariely", "Camille Seaman")) %>%
+  anti_join(get_stopwords()) %>%
+  count(speaker, word) %>%
+  group_by(word) %>%
+  filter(sum(n) > 10) %>%
+  ungroup() %>%
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>%
+  ggplot(aes(`Dan Ariely`, `Camille Seaman`)) + 
+  geom_abline(color = "red", size = 1.2, alpha = 0.8, lty = 2) +
+  # use the special ggrepel geom for nicer text plotting
+  geom_text_repel(aes(label = word), max.overlaps = 20)
+
+
+
+```
+
+After plotting the words used by both the speaker we can see that there is clear different between the choice of words, the words of speaker 1 are towards the careful tragectory because he want to tell the audiance how our behavorial thinking is hacked by the companies every day and how they make advantage only because we don't to think while making our day to day decision. on the other hand the words of the speaker 2 are very light and very inspiring in way she was explaining the nature through her lens.
+
+
+```{r  ,echo=FALSE,include=FALSE}
+#now we are analyzing the sentiments of the speaker
+# includes all rows in tidy_tweets and nrc.
+speaker_sentiments <- 
+    tidy_data %>%
+    inner_join(get_sentiments("nrc"), by = "word")  
+speaker_sentiments  %>% slice(1:10)
+
+```
+
+
+```{r,echo=FALSE,include=FALSE}
+#now counting the sentiment and groping them by headline and counting and arranging by speaker
+sentiment_counts <- speaker_sentiments %>%
+  group_by(headline)%>%
+  count(speaker, sentiment)%>%
+  arrange(speaker)
+
+```
+
+
+
+
+```{r table}
+
+
+positive_table <- sentiment_counts %>%
+  group_by(headline) %>%
+  # find the total number of words in each book, and percentage of each sentiment
+  mutate(total = sum(n), percent = n / total) %>%
+  # filter the results for only positive sentiment
+  filter(sentiment == "positive") %>%
+  arrange(desc(percent))
+
+
+```
+
+
+
+```{r,echo=FALSE,message=FALSE,fig.align='center'}
+word_counts <- speaker_sentiments %>%
+  # count by word and sentiment
+  count(word, sentiment)
+
+top_words <- word_counts %>%
+  # group by sentiment
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>%
+  mutate(word = reorder(word, n)) %>%
+  ungroup()
+  
+ggplot(top_words, aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ sentiment, scales = "free")
+
+
+```
+If we talk about the emotions of the speker's we can see the word **cheat** is dominated in both the **anger and negative** categories.whereas we can see that the positive has the most number of words that are used amoung all other emotion. Most of the word in the **positive** emotions are used more than 5 times. All other emotions usage of words speread out. since we have the most amount of words used are postive we will try to calcualte the amount of probability of postive words.
+
+
+
+```{r}
+knitr::kable(positive_table, caption = "optimistic table of talks")
+```
+
+Here we have try to find the amount of positive sentiments in each of their talks.It is very ironic to find out that the most amount of positive words are in the talk whose headline is "Haunting photos of polar ice". Its is so because when we listen the talk of speaker2,we can see the amount of enthusiam and optimism regarding her topic. And her words expained her sentiments.For speaker1 we can see that, when he talks about the general topic such as social sciences(for eg-How equal do we want the world to be? You’d be surprised,talk) his talk is more inclined toward the positive side, but when he talks about the more narrow topics such as behavioural economics it becomes slightly less positive(for eg-Beware conflicts of interest).
+
+
+```{r,echo=FALSE,message=FALSE,fig.align='center',fig.dim = c(12,6), figures-side, fig.show="hold"}
+
+
+g1<-speaker_sentiments %>%
+  # count using four arguments
+  count(headline, speaker, sentiment) %>%
+  # pivot sentiment and n wider
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  # use mutate to compute net sentiment
+  mutate(sentiment = positive - negative) %>%
+  # put index on x-axis, sentiment on y-axis, and map adult/child to fill
+  ggplot(aes(sentiment,speaker, fill = sentiment)) +
+  # make a bar chart with geom_col()
+  geom_col() +
+  # make small multiples for each title with facet_wrap()
+  facet_wrap(~ headline, scales = "free_x")
+
+
+
+library(ggplot2)
+
+g2<-ggplot(sentiment_counts, aes( sentiment,n, fill = speaker)) +
+  geom_col(show.legend = TRUE) +
+  facet_wrap(~sentiment, ncol = 2, scales = "free_x")
+
+library(gridExtra)
+
+grid.arrange(g1, g2, ncol=2)
+
+```
+From the above the visualization we can see that how the sentiments of the speaker changes over the course of their ted talks at different point of times over the years. But this is the not the case with the speaker 2, her sentiment remians the same over the course of her talks, maybe this is
+because of the nature of her topic. Though her talks, she was trying to tell the story of melting of glaceier in the artic oceans,and over the course of years it did not change, and so the emotions of speaker 2 remains same.  whereas the sentiments of the spekaer 1 changes from his talk to talk based on the subjects he is explaining to the audience members.
+
+we can clerly see that amount of postive words dominated is by the spekaer1 instead of speaker2 , that's why when you hear the talk of spekaer1 you feels lighthearted conversation.It is amazing to find that there is very less amount of sentiments present in the anger and disgust for speaker2, whereas her topics were more the imminent danger that society is facing(global warming).By analyzing we can see that both the speaker scores high in positive , anticipation and trust. These are some of the common sentiments in both the speakers.
+
+## Discussion
+In this report we have analyzed the talks of two speaker came from very different backgrounds and tried to compare them and find some common sentiments in their talk.After analyzing the ted talks for the speakers we can say that both  speakers are very field shaped. The limitation is that the total time spoke by the speaker 2 is nearly equal to the  one talk of speaker1. If we had the more length of talks by speaker2 than it would have been a great comparison between both the speaker.And here we are analyzing the 3 talks of speaker1 aganist the 2 talks of speaker2.
