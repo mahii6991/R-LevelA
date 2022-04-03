@@ -1,0 +1,269 @@
+---
+title: "Algae Blooms"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+date: '2022-03-30'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data wrangling and visualization
+
+```{r }
+library(DMwR)
+head(algae)
+
+```
+
+```{r , echo=FALSE}
+summary(algae)
+
+```
+
+```{r}
+hist(algae$mxPH,prob=T)
+
+```
+
+```{r,echo=FALSE}
+library(car)
+par(mfrow=c(1,2))
+hist(algae$mxPH, prob=T,xlab = "", main = 'Histogram of maximum pH value',ylim = 0:1)
+#lines(density(algae$mxPH),na.omit=T)
+rug(jitter(algae$mxPH))
+qqPlot(algae$mxPH,main = 'qqplot of the algae dataset')
+par(mfrow=c(1,1))
+
+```
+
+Here, we can say that. The values on the MxPH is normally distributed with 95% confidence interval. with some values breaking the interval. The value number 56,57 can be termed as the outliers.
+
+```{r}
+library(lattice)
+```
+
+
+```{r}
+boxplot(size~a1, data = algae,ylab = "River size",xlab="algal A1")
+
+```
+```{r}
+library(Hmisc)
+bwplot(size~a1,data = algae, panel = panel.bwplot,probs=seq(0.01,.49,by=0.01),datadensity=TRUE,
+       ylab = "river size",xlab = 'algae A1')
+```
+```{r}
+manyNAs(algae,0.2)
+
+
+```
+
+```{r}
+#romoving the coulums of the dataset
+algae <- algae[-manyNAs(algae),]
+#cleaning the dataset and finding out the mean of it
+clean.algae <- knnImputation(algae,k=10,meth = "median")
+
+```
+
+```{r}
+#finding out the right model for the dataset
+lm_A <- lm(a1 ~. ,data = clean.algae[,4:18])
+summary(lm_A)
+```
+
+```{r}
+#finding out the right model for the dataset
+lm_A <- lm(a1 ~. ,data = clean.algae[,1:12])
+summary(lm_A)
+
+```
+#important thing to note here is that in R the predictor with 3 categorical variable is set to dummar variable in R.R will create a set of auxiliary variable or other wise called as the dummy variable. Namely,for each factor variable have the values 0 or 1.
+
+```{r}
+plot(lm_A)
+
+```
+```{r}
+anova(lm_A)
+```
+
+Here we can see that the season variable is of no use and not relevant to the model , so we will update the model by removing the season variable form it.
+
+```{r}
+lm_B <- update(lm_A,.~.-season)#runnnig the model by removing the season variable form it
+summary(lm_B)
+```
+the fit has improved but not improved that much.
+
+```{r}
+#checking the difference between both the model and finding out the best model form it
+anova(lm_A,lm_B)
+
+```
+
+the sum of sq difference has decreased by -449.8 the comparison shows that the differnce are not significant (a value of 0.6952)
+suggest that we have only 30% CONFIDENCE to say that they are different. still we should recall that the new model is simpler.
+
+#now in order to see if we can remove some more elements from our model, we will going to use the backward elemination method.
+
+```{r}
+final.lm <- step(lm_A)
+
+```
+
+the function step uses the Akaike Information criterion to perform the model search. The search uses the backward elimination by default.
+
+```{r}
+summary(final.lm)
+```
+
+#so with this we can conclude that the the proportion of variance explained by this model is still not very interesting. This kind of proportion is usually considered a sign that the linearity assumption of this model are inadequate for the domain.
+
+##Now we are going to use the Regression Trees
+
+```{r}
+library(rpart)
+rt_A <- rpart(a1 ~., data= algae[,1:12])
+#finding the summary of the model
+rt_A
+
+```
+
+```{r}
+#plotting the regression tree of the model
+prettyTree(rt_A)
+```
+#the function rpart uses the to obtain the tree only grows the tree, stopping when certain criteria are met. Namely, the tree stops growing whenever (1)the decrease in deviance goes below certain threshold (2)the number of samples in the node isless than another threshold (3)the tree depth exceeds another value. There are certain threshold that are already defualt in the mode those are cp,minsplit and maxdepth, and their values are 0.01,20,30 respectively.
+
+```{r}
+printcp(rt_A)
+```
+
+#in the above summary a k-10 fold cross validation is performed and the error and the standard error are obtained in it.
+
+```{r}
+rt_B <- prune(rt_A,cp=0.8)#WE NEED to choose the best tree according to the 1-se rule.
+rt_B
+
+```
+```{r}
+(rt_A <- rpartXse(a1~.,data = algae[,1:12]))#in this package it automates this process and takes as argument the se value, defaulting to 1.
+
+```
+
+
+r also allows a kind of interactive pruning of a tree through the function snip.rpart(). This function can be used to generate a pruned tree in two ways.
+
+```{r}
+first.tree <- rpart(a1~.,data = algae[,1:12])
+snip.rpart(first.tree,c(4,7))
+```
+```{r}
+prettyTree(first.tree)
+```
+
+
+```{r}
+my.tree <- snip.rpart(first.tree,c(4,7))
+my.tree
+
+
+```
+#the rpart package implements a pruning method called the cost complexity pruning.This mehtod uses the values of the parameter cp and R calculates for each node of the tree. The pruning method tries to estimate the value of cp that ensures the best compromise between predictive accuracy and tree size.
+
+
+#NEXT step is to perform the cross validation find out the results of it
+the predictive performance of the regression model is obtained by comparing the prediction of model with the real target variables,
+and calcualting some mean absolute error (MAE)
+
+```{r}
+
+lm.prediction.A <- predict(final.lm,clean.algae)#using the predict function on the final model to the original dataset
+rt.prediction.A <- predict(rt_A,algae)#this is the way of finding the prediction values for both the model 
+
+```
+
+#after finding the prediction values we are going to calcualte the mean value of the whole prediction
+
+```{r}
+(mae.a1.lm <- mean(abs(lm.prediction.A - algae[,"a1"])))#so here we got the mean squared error in a single 
+
+```
+
+```{r}
+(mae.a1.rt <- mean(abs(rt.prediction.A - algae[,"a1"])))#so here we got the value form the regression model that we used
+```
+#another popular method is the mean squared error, lets calculate it
+
+```{r}
+(mae.a1.lm <- mean((lm.prediction.A - algae[,"a1"])^2))#hurray we got the value
+```
+
+```{r}
+(mae.a1.rt <- mean(abs(rt.prediction.A - algae[,"a1"])^2))#and we got the value for both the model
+```
+
+#so the MSE has the disadvantage of not being meased in the same units as the target variable.
+
+#now we will be using the mean squared erroe and finding out the value of it 
+
+```{r}
+
+(nmse.a1.lm<-  mean((lm.prediction.A - algae[,'a1'])^2) /mean((mean(algae[,'a1'])-algae[,'a1'])^2)) #ohh finally after 10 minutes of debugging it finally ran and provided us the results 
+
+```
+#doing the same for the regression tree
+```{r}
+(nmse.a1.rt<-  mean((rt.prediction.A - algae[,'a1'])^2) /mean((mean(algae[,'a1'])-algae[,'a1'])^2))
+```
+how to interpret the value of nmse , so its value ranges form 0 to 1 , the lower the value of nmse the better it is.values greater than 1 mean that your model is perfoming worse than simply predicting the average of all cases!
+
+#using another r function for the above task
+```{r}
+regr.eval(algae[,"a1"],rt.prediction.A,train.y = algae[,"a1"])
+```
+In this next step, we are going to evaluate our model in the basis of k-fold cross validation process. 
+In general when we are facing a predictive task we have to make the following decision.
+
+1)select the alternative model to consider
+2)select the evaluation metrics that will be used to compare the models.
+3)choose the experimental methodology for obtaining reliable estimates of these matrics.
+
+#let's construct the functions
+```{r}
+cv.rpart <- function(form,train,test,...){
+  +m <- rpartXse(form,train,...)
+  +p <- predict(m,test)
+  +mse <- mean((p-resp(form,test))^2)
+  +c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
+}
+
+```
+
+
+In this illustrarive example we have assumed that we want to use the NMSE as evaluation metric of our regression tree and linear model.
+
+```{r}
+cv.lm <- function(form,train,test,...){
+  +m <- lm(form,train,...)
+  +p <- predict(m,test)
+  +p <- ifelse(p<0,0,p)
+  +mse <- mean((p-resp(form,test))^2)
+  +c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
+}
+
+```
+
+Having defined my functions that will carry out the learning and testing phase of our model, we can carry out the cross validation comparison as follows:
+
+```{r}
+res <- experimentalComparison(c(dataset(a1~.,clean.algae[,1:12],'a1')),c(variants('cv.lm')),variants('cv.rpart',se=c(0,0.5,1)),cvSettings(3,10,1234)
+)
+
+```
+
