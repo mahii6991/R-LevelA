@@ -237,10 +237,10 @@ In general when we are facing a predictive task we have to make the following de
 #let's construct the functions
 ```{r}
 cv.rpart <- function(form,train,test,...){
-  +m <- rpartXse(form,train,...)
-  +p <- predict(m,test)
-  +mse <- mean((p-resp(form,test))^2)
-  +c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
+  m <- rpartXse(form,train,...)
+  p <- predict(m,test)
+  mse <- mean((p-resp(form,test))^2)
+  c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
 }
 
 ```
@@ -250,20 +250,182 @@ In this illustrarive example we have assumed that we want to use the NMSE as eva
 
 ```{r}
 cv.lm <- function(form,train,test,...){
-  +m <- lm(form,train,...)
-  +p <- predict(m,test)
-  +p <- ifelse(p<0,0,p)
-  +mse <- mean((p-resp(form,test))^2)
-  +c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
+  m <- lm(form,train,...)
+  p <- predict(m,test)
+  p <- ifelse(p<0,0,p)
+  mse <- mean((p-resp(form,test))^2)
+  c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
 }
 
 ```
 
 Having defined my functions that will carry out the learning and testing phase of our model, we can carry out the cross validation comparison as follows:
 
+
+In this illustrative example, we have assumed that we want to use the NMSE as evaluation metric of our regression trees and linear model. All of the user defined functions should have as the first three parameter(a formula),(a training data),(a test data). The remaining parameter that may be included in the call by the experimental routines are parameters of learner being evaluate .Both parameter carry out the same test + train + evaluation cycle although using obviously a different learing algorithm. Both return as result a named vector with the score in terms of NMSE.
 ```{r}
-res <- experimentalComparison(c(dataset(a1~.,clean.algae[,1:12],'a1')),c(variants('cv.lm')),variants('cv.rpart',se=c(0,0.5,1)),cvSettings(3,10,1234)
+res<-experimentalComparison(dataset(a1~.,clean.algae[,1:12],'a1'),c(variants('cv.lm',se=c(0,0.5,1))
+                            ,c(variants('cv.rpart',se=c(0,0.5,1)))), cvSettings(3,10,1234)
 )
 
 ```
+as mentioned previously, the first argument should be a vector with the datasets to ve used in the experimental comparison.
+Each dataset is specified as dataset(<formula>,<dataframe>,<label>). the secound argument of experimentalComparison() contains a vector of learining systems varients.Each varients is specified using the function variants().It's first argument is the name of user defined function that will carry out the learn+test+evaluate cycle.
+
+
+
+```{r}
+summary(res)
+```
+
+
+As, we have seen one of the variant of regression tree has got the lowest possible score .whether the difference is statistically significant with respect to the other alternatives is a question we will address later in this section:
+
+```{r}
+plot(res)
+```
+#visualiztion of cross validation result
+
+
+
+```{r}
+getVariant("cv.rpart.v1",res)
+```
+Now we are going to carry out the similar comparative experiment for all seven predictors tasks we are facing at the same time. the following code implements that
+
+```{r}
+DSs <- sapply(names(clean.algae)[12:18], function(x,names.attrs)
+{
+  f <- as.formula(paste(x,"~."))
+  dataset(f,clean.algae[,c(names.attrs,x)],x)
+},
+  names(clean.algae)[1:11])
+
+```
+
+#it ran successfully
+```{r}
+res.all <- experimentalComparison(
+  DSs,
+  c(variants('cv.lm'),
+    variants('cv.rpart',se=c(0,0.5,1))
+  ),
+  cvSettings(5,10,1234)
+  
+  
+)
+```
+now, we will plot the result of it and check out the comparison in it.
+
+```{r}
+plot(res.all)
+
+```
+as we can observe there are several very bad results : that is, NMSE scores are clealy above 1, which is the baseline of being competitive as predicting always the average target.If we want to check the best Modal for each problem , we can use the function bestScores(),from our package:
+
+```{r}
+bestScores(res.all)
+```
+the output of this function confirms that, with the exception of algea1, results are rather disappointing. The variability of the results provides us the good indication that this might be a good candidate for an ensemble approach. Ensemble are model
+contruction method that basically try to overcome some limitations of individuals model by generating a large set of alternative models and then combining their prediction.
+
+
+#Random forests are regarded as one of the most competitive example fo ensemble. They are formally the large set of tree-based models.(regression and classification)
+
+Each tree is fully grown (no-post pruning);and at each step of the tree growning process, the best split for each node is chosen from a random subset of attributes.
+
+```{r}
+library(randomForest)
+
+cv.rf <- function(form,train,test,...){
+  m <- randomForest(form,train,...)
+  p <- predict(m,test)
+  mse <- mean((p-resp(form,test))^2)
+  c(nmse=mse/mean((mean(resp(form,train))-resp(form,test))^2))
+}
+```
+
+and voila , it worked flawlessly
+
+```{r}
+res.all <- experimentalComparison(
+  DSs,
+  c(variants('cv.lm'),
+    variants('cv.rpart',se=c(0,0.5,1)),
+    variants('cv.rf',ntree=c(200,500,700))
+    ),
+  cvSettings(5,10,1234))
+
+```
+
+#finding out the best score of the model we can get !
+
+```{r}
+bestScores(res.all)
+```
+As we can see the "cv.rf.v3" is the best model for out dataset, and also for the algae 1,2,4 and 6 :
+
+```{r}
+compAnalysis(res.all,against = 'cv.rf.v3',
+             datasets = c('a1','a2','a4','a6'))
+
+```
+
+#prediction for the seven algae
+the following code obtain all 7 models
+
+```{r}
+bestModelsNames <- sapply(bestScores(res.all),
+                          function(x) x['nmse','system'])
+learners <- c(rf='randomForest',rpart='rpartXse')
+funcs <- learners[sapply(strsplit(bestModelsNames,'\\.'),
+                         function(x)x[2])]
+parSetts <- lapply(bestModelsNames,
+                   function(x) getVariant(x,res.all)@pars)
+bestModels <- list()
+for(a in 1:7){
+  form <- as.formula(paste(names(clean.algae)[11+a],'~.'))
+        bestModels[[a]]<- do.call(funcs[a],
+              c(list(form,clean.algae[,c(1:11,11+a)]),parSetts[[a]]))
+                           }
+
+```
+#hard to know why the function is not running
+
+```{r}
+clean.test.algae <- knnImputation(test.algae,k=10,distData = algae[,1,11])
+
+```
+#still the above code does not work but will check later
+
+```{r}
+preds <- matrix(ncol = 7,nrow = 140)
+for (i in 1:nrow(clean.test.algae))
+  preds[i,] <- sapply(1:7, function(x)
+    predict(bestModels[[x]],clean.test.algae[i,])
+    )
+
+```
+
+#with the above code we can obtain a matrix(preds),with the required 7*140 prediction. At this stage we can compare these predictions with the real values to obtain some prediction and on the quality of approach to this prediction problem.
+
+```{r}
+avg.preds <- apply(algae[,12:18],2,mean)
+apply(((algae.sols-preds)^2),2,mean)/apply((scale(algae.sols,avg.preds,F)^2),2,mean)
+
+```
+
+
+#summary
+In terms of mining the case study has provided us -
+1) Data visualization
+2) Descriptive Statistics
+3) Strategies to handle the missing data
+4) Regression tasks
+5) Evaluation metrics for regression tasks
+6) Multiple linear regression
+7) Regression trees
+8) Model selection/comparison through k-fold cross-validation
+9) Model ensamble and random forests
+
 
