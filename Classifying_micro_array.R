@@ -356,6 +356,9 @@ vars$knn <- list(k=c(3,5,7,11),
                               list('rf',30),
                               list('varclus',30,50)))
 
+#the list has three component, one for each component, one for each of the algoritms being compared.
+#the first uses the features resulting from the anova ,statistical test. The secound select 30 genes from the set
+#obtained from the anova test, using the variable clustering ensemble strategy that we described previously
 
 varsEnsembles <- function(tgt,train,test,
                           varsSets,
@@ -393,6 +396,14 @@ varsEnsembles <- function(tgt,train,test,
                labels=levels(train[,tgt]))
   if (verb) structure(ps,ensemblePreds=preds) else ps
 }
+
+
+#these prediction are obtained through the voting mechanism amoung the members of the ensemble. The difference
+#between the members of the ensemble lies only in the predictors that are used, which are determined by 
+#the varssets parameter.these sets results from a variable clustering process.
+
+#we have created a single user-defined modelling function that will receive as one of the parameter the 
+#learner that is to be used.
 
 
 genericModel <- function(form,train,test,
@@ -451,6 +462,9 @@ genericModel <- function(form,train,test,
 }
 
 
+#the user defined function will be called from within the loocv routines for each iteration of the process.
+#the experiment with all these variants on the microarray data will take a long time to complete.
+
 require(class,quietly=TRUE)
 require(randomForest,quietly=TRUE)
 require(e1071,quietly=TRUE)
@@ -462,11 +476,15 @@ ALLb <- nsFilter(ALLb,
                  var.func=IQR,var.cutoff=IQR(as.vector(es))/5, 
                  feature.exclude="^AFFX")
 ALLb <- ALLb$eset
+
 # the data set
 featureNames(ALLb) <- make.names(featureNames(ALLb))
 dt <- data.frame(t(exprs(ALLb)),Mut=ALLb$mol.bio)
 DSs <- list(dataset(Mut ~ .,dt,'ALL'))
 # The learners to evaluate
+library(MASS)
+library(nnet)
+
 TODO <- c('knn','svm','randomForest')
 for(td in TODO) {
   assign(td,
@@ -485,6 +503,9 @@ for(td in TODO) {
 }
 
 
+#need to load the dataset form the website because the above code will take around 3 days to fun
+#on the normal computer,so we need to download the dataset and run it from there in our computer.
+
 load('knn.Rdata')
 load('svm.Rdata')
 load('randomForest.Rdata')
@@ -492,15 +513,26 @@ load('randomForest.Rdata')
 
 rankSystems(svm,max=T)
 
+#the function rank system() takes an object of class compExp and obtain the best performing variats
+#for each of the statistics that were estimated in the experimental process. 
+
+#in order to have the overall perspective of all trials , we can join the three objects:
 
 all.trials <- join(svm,knn,randomForest,by='variants')
 
-
+#with the compExp object we can check the best overall score of our trials:
 rankSystems(all.trials,top=10,max=T)
 
-
+#the top score obtained by a variant of the k-nearest neighbour method. Let us check its characterstics
 getVariant('knn.v2',all.trials)
+#the varient uses 30 genes filtered by a random forest , five neighbors and normalization of the gene
+#expression values. It is also interesting to observe that amoung the top ten scores only the last one 
+#does not use the the 30 gene filters with a random forest. The tenth best model uses all genes resulting
+#from the anova filtering.
 
+#It may be interesting to know which error were made by the models, for instance, the best model, confusion
+#matrix provide this type of information, TO obtain a confusion matrix we need to know what the actual 
+#prediction of the model are. 
 
 bestknn.loocv <- function(form,train,test,...) {
   require(Biobase,quietly=T)
@@ -536,7 +568,19 @@ resTop <- loocv(learner('bestknn.loocv',pars=list()),
                 dataset(Mut~.,dt),
                 loocvSettings(seed=1234,verbose=F),
                 itsInfo=T)
+ 
+#the bestknn.loocv() function is essentially a specialization of the function genericModel()
+#we have seen before, but focused , on 5 -nearest neighbors with random forest filtering and 
+#noramlization using median and IQRs. Most of the code is the same as in generic model, return a structure.
 
+
+
+
+
+#in the end we can inspect this information and in this case see what were the actual prediction of the 
+#best model on iteraction.
+
+#we can check the content of the attribue containing the wanted information as follows
 
 attr(resTop,'itsInfo')[1:4]
 
@@ -546,3 +590,18 @@ dt <- data.frame(t(exprs(ALLb)),Mut=ALLb$mol.bio)
 
 preds <- unlist(attr(resTop,'itsInfo'))
 table(preds,dt$Mut)
+
+#The confusion matrix can be used to inspect the type of errors that the model makes. For instances, we can
+#observe that the model correctly predicts all cases with the ALL1/AF4 mutation. Moreover, we can also 
+#obsrve that most of the error of the model consists of predicting the class NEG for a case with some 
+#mutation. Nevertheless, the reverse also happens with five samples with no mutation.
+
+
+#SUMMARY
+#1) Feature selection methods for problems with a very large number of predictors
+#2) classification model
+#3)Random forest
+#4) k - nearest neighbour 
+#4) svms
+#5) ensembles using different subsets of predictors 
+#6) leave - one- out cross- validatioin experiments
