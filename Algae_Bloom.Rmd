@@ -427,5 +427,5 @@ In terms of mining the case study has provided us -
 7) Regression trees
 8) Model selection/comparison through k-fold cross-validation
 9) Model ensamble and random forests
-
+10)still the model is hard to built our of it.
 
