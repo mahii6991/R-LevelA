@@ -14,6 +14,9 @@
 
 
 
+#the amount of dataset is so big that we are addressing around 4 lakh+ rows of the dataset and finding out the insights
+#from it
+
 
 #ID- a factor with the ID of the salesman
 #Prod- a factor indicating the ID of the sold product
@@ -56,5 +59,11 @@ describe(sales)
 
 #finding out how many na values are present in both the column
 length(which(is.na(sales$Quant) & is.na(sales$Val)))
+
+#finding out the na values from the dataset 
+sum(is.na(sales$Quant) & is.na(sales$Val))
+
+#using the table function to inspect the results which are also a small proportion overall:
+table(sales$Insp)/nrow(sales)*100
 
 
