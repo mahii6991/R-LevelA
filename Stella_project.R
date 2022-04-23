@@ -1,124 +1,184 @@
-#what is the aim of the project
-#The aim is to
-#investigate the relationship between WDI indicators and the severity of the COVID-19 pandemic.
-View(project_data)
-#removing the na values from the the project
-project_data <- na.omit(project_data)
-project_data
-
-#viewing the dataset after removing the na values
-View(project_data)
-
-
-#first finding the summary of the dataset
-summary(project_data)
-
+#QUESTION 1
+#required to load all the libraries
+library(dplyr)
+library(factoextra)
+library(gridExtra)
+library(tidyverse)
+library(MASS)
+library(ISLR)
+library(factoextra)
+library(vtable)
+library(car)
+library(InformationValue)
+library(nnet)
+#loading the project data
+project_data <- read_csv("project_data.csv")
+#first cleaning the last row of the dataset
+project_data <- project_data[-186,]
+#removing the categorical values form the dataset and only keeping the contineous varible 
+project_data_num <- project_data[-c(1,2,20)]
+#filling the na values with the mean values
+library(tidyr)
+no_mis_data <- replace_na(project_data_num,as.list(colMeans(project_data_num,na.rm=T)))
+#removing the datacolumns form the table to make it cleaner 
+project_data_3 <-  project_data[,c(1,2,20)]
+#now joining again the dataset to make the complete table
+full_project_data <- cbind(project_data_3,no_mis_data)
+View(full_project_data)
+#filling out the values in the full project dataset to trying to complete it as a whole
+full_project_data$Continent <- full_project_data$Continent %>% replace_na("Australia/Oceania")
+#need to remove the na values from the comp.education dataset so first need to convert it in numeric form from character
+full_project_data$Comp.education[is.na(full_project_data$Comp.education)] = mean(full_project_data$Comp.education,na.rm = T)
+#after cleaning the dataset properly we have 185 colums and 20 variables
+summary(full_project_data) #finding the summary of the dataset
 #plotting the histogram
-attach(project_data)
+hist(full_project_data$Covid.deaths)
+#STARTING OF QUESTION 2
+#now starting with the clustering task
+#first starting with scaling the dataset in R
+data_1 <- scale(full_project_data_1[,-1])
+#but first set.seed
+set.seed(123)
+#making the first cluster
+k2 <- kmeans(data_1, centers = 2, nstart = 20)
+#making the secound cluster
+k3 <- kmeans(data_1, centers = 3, nstart = 20)
+#making the third cluster
+k4 <- kmeans(data_1, centers = 4, nstart = 20)
+#now plotting the cluster 1 and visualizing it on the chart
+fviz_cluster(k2, data = data_1)
+#now plotting the different cluster 2 and visualizing the plot
+fviz_cluster(k3, data = data_1)
+#now plotting the different cluster 3 and visualizing the plot
+fviz_cluster(k4, data = data_1)
+#now putting all the plots into one big diagram 
+f1 <- fviz_cluster(k2, geom = "point", data = data_1) + ggtitle("k = 2")
+f2 <- fviz_cluster(k3, geom = "point", data = data_1) + ggtitle("k = 3")
+f3 <- fviz_cluster(k4, geom = "point", data = data_1) + ggtitle("k = 4")
+#loading the library gridExtra to make one big clusters
+library(gridExtra)
+grid.arrange(f1, f2, f3, nrow = 2) #arranged the figure into two rows with big figures
+#need to try the hirarchial clustering
+#first finding the average distance between the clusters using the euclidean distance
+dist_mat <- dist(data_1, method = 'euclidean')
+#now using the dendogram function on the dataset to view the clusters
+hclust_avg <- hclust(dist_mat, method = 'average') #plotting the histogram using average method
+plot(hclust_avg)#plotting it
+rect.hclust(hclust_avg , k = 4, border = 2:6)#finding the borders of clusters
+abline(h=6.5, col="blue")#plotting the abline 
+#QUESTION 3
+#first I need to convert the covid_deaths into a binary variable
+final_data$Covid.deaths.bin <- ifelse(final_data$Covid.deaths>median(final_data$Covid.deaths), 1, 0) #converted my dataset into the binary variable
+#STARTING OUT WITH ALL THE VARIABLE AND THEN REFINING IT TO FEW
+#using the logistic regression model on the dataset to predict the high COVID caualties
+glm_1 <- glm(Covid.deaths.bin ~  Comp.education + Life.expec+ Elect.access + Net.nat.income       
+            + Net.nat.income.capita + Mortality.rate + Primary + Pop.growth  + Pop.density + Pop.total + Health.exp.capita + Health.exp           
+             + Unemployment + GDP.growth+ GDP.capita+ Birth.rate+ Water.services,data = final_data,family = binomial)
+#training the model with few variable and removed the insignificant variables from the older model and only training the model on the updated model
+set.seed(1)
+#splitting the dataset into 60%  and 40%
+row.number = sample(1:nrow(final_data_2), 0.6*nrow(final_data_2))
+train = final_data_2[row.number,] #training data
+test = final_data_2[-row.number,]#testing data
+dim(train)# finding out dimension
+dim(test)#finding out dimension
+#now I am going to run the model on the train data set 
+glm_4 <- glm(Covid.deaths.bin ~  Comp.education + Life.expec+ Elect.access     
+             + Mortality.rate + Health.exp.capita + Health.exp           
+             + Unemployment + GDP.growth+ Water.services,data = train,family = binomial)
+#finding the summary of the train dataset
+summary(glm_4)
+#checking for collinearity
+car::vif(glm_4)
+###Predict for training data and find training accuracy
+pred.prob = predict(glm_4, type="response")
+pred.prob = ifelse(pred.prob > 0.5, 1, 0)
+table(pred.prob, train$Covid.deaths.bin) #finding the table
+#hence my model ran successfully and provided me the confusion matrix
+#now I am going to calculate the accuracy of the model
+(43+47)/111 #so finally I can say that I am getting the 81% accuracy in the model when running it with the train
+#now I am going to run my dataset on the test data set and try to compare both the model and evaluate them
+pred.prob = predict(glm_4, newdata= test, type="response")
+pred.prob = ifelse(pred.prob > 0.5, 1, 0)
+table(pred.prob, test$Covid.deaths.bin)
+#finding out the accuracy of the model on the train dataset and finding out the accuracy
+(28+34)/74 #so after running my model , I am getting the accuracy of the 83% on the test dataset
+#loading the library to find out the accurarcy measures of the model
+library(InformationValue)
+misClassError(pred.prob, test$Covid.deaths.bin,threshold=optimal)
+#finding the specificity of model
+specificity(pred.prob, test$Covid.deaths.bin)
+#finding the sensitivity  of the model
+sensitivity(test$Covid.deaths.bin,pred.prob)
+#plotting the roc curve for the model
+plotROC(test$Covid.deaths.bin,pred.prob)
+#STARTING OF THE QUESTION 5
+#Splittting the response variable into 4 categorical variables
+final_data$Covid.deaths <- ifelse((final_data$Covid.deaths < 167) , 0 ,  
+                                     ifelse((final_data$Covid.deaths < 998), 1,
+                                            ifelse((final_data$Covid.deaths < 1830), 2, 3)))
+#viewing the datset and considering if some manupalation is required or not
+view(final_data)
 
-hist(project_data$Covid.deaths,prob=F) #as we can see the covid deaths does not follow the normal distriburion curve
-#loading the car library to see the qqplot of the curve
-library("car")
-#loading the required qq plot form the data
-qqPlot(project_data$Covid.deaths,main="number of the covid deaths") #here we can see we have indentified two ouliers in the data
+#manupulating my dataset before applying my learning my algorithm to this dataset, removing some columns like country name, continents and covid deaths bin
+final_data_3 <- final_data[,-c(2,3,21)]
+#setting the seed
+set.seed(1)
+#spitting my dataset into the training and testing 
+row.number = sample(1:nrow(final_data_3), 0.6*nrow(final_data_3))
+train = final_data_3[row.number,] #spitting the dataset into training dataset
+test = final_data_3[-row.number,] #spitting the dataset into testing dataset
+dim(train) #finding out the dimensions training 
+dim(test)#finding out dimenstion of testing dataset
+#now running the lda fit model to my dataset and seeing the results
+lda.fit <- lda(Covid.deaths ~ Comp.education + Life.expec+ Elect.access     
+               + Mortality.rate + Health.exp.capita + Health.exp           
+               + Unemployment + GDP.growth+ Water.services,data = train)
+plot(lda.fit)
+##Predicting training results.
+predmodel.train.lda = predict(lda.fit, data=train)
+table(predmodel.train.lda$class, train$Covid.deaths)
+#by checking the accuracy of the lda.fit on the training data , we are getting somewhere around the 70.27%
+#now need to check 
+#attach(test)
+predmodel.test.lda = predict(lda.fit, newdata=test)
+table(predmodel.test.lda$class, test$Covid.deaths)
+#on the testing data set I am getting the accuracy of 54.05%
+#running the qda.fit model
+qda.fit <- qda(Covid.deaths ~ Comp.education + Life.expec+ Elect.access     
+               + Mortality.rate + Health.exp.capita + Health.exp           
+               + Unemployment + GDP.growth+ Water.services,data = train)
 
-#now we are going to plot the boxplot 
+#analyzing the summary of qda.fit model
+qda.fit
+##Predicting training results.
+predmodel.train.qda = predict(qda.fit, data=train)
+table(predmodel.train.qda$class, train$Covid.deaths)
+#by checking the accuracy of the lda.fit on the training data , we are getting somewhere around the 75.67%
+#now need to check 
+#attach(test)
+predmodel.test.lda = predict(lda.fit, newdata=test)
+table(predmodel.test.lda$class, test$Covid.deaths)
+#on the testing data set I am getting the accuracy of 54.05%
+#loading the library of the multiclass classification problem
+library(nnet)
+#library(tidyverse)
+#running it / and it ran, it provided the results now the thing is to draw the contingency table for this class
+glm_5 <- nnet::multinom(Covid.deaths ~ Comp.education + Life.expec+ Elect.access     
+                          + Mortality.rate + Health.exp.capita + Health.exp           
+                          + Unemployment + GDP.growth+ Water.services,data = train,family = binomial)
+#so the multiclass classification ran and now we need to 
+# Summarize the model
+summary(glm_5)
+# Make predictions
+predicted.classes <- glm_5 %>% predict(test)
+head(predicted.classes)
+# Model accuracy
+mean(predicted.classes == test$Covid.deaths)
+#so on the testing data we are getting the accuracy of 45% when running the logistic regression for multiclass classification model
 
-boxplot(project_data$Covid.deaths, ylab= "covid deaths across the region")
-rug(jitter(project_data$Covid.deaths),side = 2)
-abline(h=mean(project_data$Covid.deaths))
-#after plotting the box plot we can see that the mean line slightly up than the median line
-#it means that there are greater number number of region present where there is more deaths than than the average rate accross the globe
-
-
-#loading the library to find or convert the data of covid.deaths  
-
-
-
-
-attach(project_data)
-
-#finding the correlation between different variables
-cor(cbind(project_data$Covid.deaths,project_data$Life.expec,project_data$Health.exp.capita))
-
-
-#using the scatter plot to analyze the correlation between different variables
-pairs(~Covid.deaths+Life.expec+Health.exp.capita)
-
-#finding correlation amoung covid.deathds and life.expec
-cor(Covid.deaths,Health.exp.capita, use = "complete.obs")
-
-
-
-library(corrplot)
-corrplot(project_data[,3:18], method="circle")
-
-#detaching the project data from the dataframe
-detach(project_data)
-
-
-project_data$`Country Name`<- as.integer(project_data$`Country Name`)
-
-
-#plotting the correlation matrix in a different way
-M <- project_data[ , -c(1,2,20)]
-corrplot(M, method = "ellipse")
-
-
-corrplot(M, type="upper", order="hclust", 
-         p.mat = p.mat, sig.level = 0.01, insig = "blank")#getting error in this code 
-
-#starting out with finding the correct dataset for the above model
-lm.a1 <- lm(Covid.deaths ~. ,data=M)#finding multiple linear regression aganist every other varible in the dataset
-summary(lm.a1)
-
-#finding the generalised linear model and using the poisson link function in it
-summary(glm(Covid.deaths ~. ,data=M,family = poisson(link = log)))
-
-#the results are kind of weired , when using the multiple linear regression the we are only getting one 
-#significant varible and when using the generalised linear model i am gettig almost all the significance varible
-#now the question arrises how to find the best model for the data set
-
-#now we are going us the AIC to find the most significance model for our variable and use to remove some varible
-#form the model
-final.lm <- step(lm.a1)
-summary(final.lm)
-#so after calculating the aic of the model and the summary of the model , i think i can negelect the other variable
-#from the model and can focus on only the significance variable provided by the model
-
-
-
-#so after doing all this now I am going to foucs my work on the anova table()
-#why I am running it to find the unnessary variable from my model and way to do is that is 
-#first calculate the linear regression model from the whole variable and then use the anova to 
-#filter out the unnecessay variable from our modlel
-#that is what we are going to do in this
-anova(lm.a1)
-
-#so after finding the results of the anova table we can say that, we can some variable from the 1st linear 
-#regression model
-
-
-#here is the start of regression tree
-install.packages("rpart")
-library(rpart)
-
-
-rt.a1 <- rpart(Covid.deaths ~., data = M)
-rt.a1
-
-
-#using the pretty form of tree
-plot(rt.a1)
-
-
-
-#making a function to calculate the cube of the numbers
-comp_sum <- function(n){
-  num= 1:n
-  sum_zz <- sum(num^3)
-  return(sum_zz)
-}
-
-comp_sum(5)
-
+#In this project we have implemented-
+#linear regression
+#logistic regression
+#LDA, QDA and logistic regression
+#summary of our results which is better for the prediction
