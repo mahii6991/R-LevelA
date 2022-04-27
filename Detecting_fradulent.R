@@ -162,21 +162,31 @@ sum(out)/nrow(sales)*100
 ###################################################
 ### Data problems
 ###################################################
+#ways to dealing with the unknown values,there are three alternatives to deal with them
+#remove the cases
+#fill in the unknown using some strategy
+#use tools to handle this kind of values
+
+#the main concern are transaction that have both the values of quant and val missing . removing all 888 cases 
+#may be problamatic if this leads to removing most transaction of some product or salesperson 
+
+#the total number of transaction per sales person and product is given by
 totS <- table(ID)
 totP <- table(Prod)
 
-
+#the sales person and product involved in the problematic transaction are the following:
 nas <- sales[which(is.na(Quant) & is.na(Val)),c('ID','Prod')]
 
-
+#we obtain the sales person with a larger proportion of transaction with unkown on both val and quant
 propS <- 100*table(nas$ID)/totS
 propS[order(propS,decreasing=T)[1:10]]
 
-
+#with respect to the products ,these are the numbers
 propP <- 100*table(nas$Prod)/totP
 propP[order(propP,decreasing=T)[1:10]]
 
-
+#there are several products that would have more than 20% of their transaction removed, and in particular 
+#product p2689 would have almost 40% of them removed.
 detach(sales)
 sales <- sales[-which(is.na(sales$Quant) & is.na(sales$Val)),]
 
@@ -185,11 +195,11 @@ nnasQp <- tapply(sales$Quant,list(sales$Prod),
                  function(x) sum(is.na(x)))
 propNAsQp <- nnasQp/table(sales$Prod)
 propNAsQp[order(propNAsQp,decreasing=T)[1:10]]
-
-
+#there are two products which has the unknown values of the quantity
+#we are deleting this two transaction
 sales <- sales[!sales$Prod %in% c('p2442','p2443'),]
 
-
+#given we have removed the two products from the dataset we will update it
 nlevels(sales$Prod)
 sales$Prod <- factor(sales$Prod)
 nlevels(sales$Prod)
