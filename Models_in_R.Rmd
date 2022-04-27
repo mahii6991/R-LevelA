@@ -1,0 +1,82 @@
+---
+title: "Regression Model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+```{r}
+
+#loading the library from the internet
+library(nutshell)
+data(team.batting.00to08)#loading the dataset into the R environment
+
+
+```
+
+
+
+```{r pressure, echo=FALSE}
+#fitting a model into the dataset
+runs.mdl <- lm(runs~ singles+doubles+triples+homeruns+walks+hitbypitch+sacrificeflies+stolenbases+caughtstealing,data = team.batting.00to08)
+summary(runs.mdl)
+
+```
+```{r}
+residuals(runs.mdl)
+```
+```{r}
+#finding out the influence
+influence.measures(runs.mdl)
+```
+
+
+```{r}
+anova(runs.mdl)
+#we found out that some variable that were significant in the linear model are not significant when we run the anova model
+
+```
+
+```{r}
+#finding out the variance -covariance matrix
+vcov(runs.mdl)
+```
+```{r}
+runs.mdl2 <- lm(runs~ singles+doubles+triples+homeruns+walks+hitbypitch+0+stolenbases+caughtstealing,data = team.batting.00to08)
+summary(runs.mdl2)
+
+#by removing the one significant variable we are getting two non-significant variable as significant
+
+```
+```{r}
+#checking the heteroscedastic
+library(car)
+ncvTest(runs.mdl)
+
+```
+
+```{r}
+durbinWatsonTest(runs.mdl)
+
+```
+
+```{r}
+library(nutshell)
+data(shiller.index (shiller))
+
+```
+```{r}
+dsets <- data(package = "nutshell")$result[, "Item"]
+dsets
+```
+```{r}
+library(rpart)
+
+```
+
