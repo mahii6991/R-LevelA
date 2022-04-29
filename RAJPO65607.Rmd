@@ -1,0 +1,286 @@
+---
+title: "MA304-Coursework"
+subtitle: "Analysis of a policing dataset from Dallas, Texas in 2016"
+author: RAJPO65607-MAHENDRA-RAJPOOT
+output: html_document
+---
+
+
+```{r setup, include=FALSE,warning=FALSE}
+### Don't delete this setup code chunk from your file
+knitr::opts_chunk$set(echo = FALSE,fig.align = 'center')   ## DON'T ALTER THIS: this is to prevent printing the code in your "html" file.
+
+```
+
+
+## Introduction
+In this report we are going to analyze the data set from the center of policing Equity (CPE) is a consortium of research scientists that promotes the police transparency and accountability with the help of innovation and collaboration between law enforcement agencies and the communities they serve. This is the collection of standardized police behavioral data. In this report we will try to find out the problems in the systems, such as racism in the police department. And try to find some answers and extract some insights after doing some visualization. The ultimate goal is to inform police agencies where they can make improvements by identifying deployment areas where racial disparities exist and are not explainable by crime rates and poverty levels.
+
+```{r , echo=FALSE,warning=FALSE,message=FALSE}
+#loading the library
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(ggExtra)
+library(ggalluvial)
+library(plotly)
+library(lubridate)
+library(kableExtra)
+#loading the dataset into the envrironment
+viz1 <- read_csv("DataVizualization.csv")
+
+#removing the column with more than 60% of the missing values in it
+viz2 <- viz1[,-c(37:45)]
+
+#after some more manupulation need to start doing the vizuation stuff
+viz3 <- viz2[-1,]
+
+
+#converting the latitude and longitute from the character to the numeric dataset
+viz3$LOCATION_LATITUDE <- as.numeric(viz3$LOCATION_LATITUDE)#converting form the character to the numeric dataset
+viz3$LOCATION_LONGITUDE <- as.numeric(viz3$LOCATION_LONGITUDE)#converting the character to the numeric dataset
+viz3$STREET_NUMBER <- as.numeric(viz3$STREET_NUMBER)#converting street number into numeric dataset
+viz3$OFFICER_ID <- as.numeric(viz3$OFFICER_ID)#converting officers id into numeric dataset
+viz3$OFFICER_YEARS_ON_FORCE <- as.numeric(viz3$OFFICER_YEARS_ON_FORCE)#converting OFFICER_YEARS_ON_FORCE into numeric dataset
+viz3$SUBJECT_ID  <- as.numeric(viz3$SUBJECT_ID )#converting SUBJECT_ID  into numeric dataset
+viz3$REPORTING_AREA   <- as.numeric(viz3$REPORTING_AREA)#converting REPORTING_AREA   into numeric dataset
+viz3$BEAT   <- as.numeric(viz3$BEAT)#converting Beat  into numeric dataset
+viz3$SECTOR   <- as.numeric(viz3$SECTOR)#converting sector  into numeric dataset
+
+
+#filling the missing the vlues of the mean of the columns 
+viz3$LOCATION_LATITUDE[is.na(viz3$LOCATION_LATITUDE)]<-mean(viz3$LOCATION_LATITUDE,na.rm=TRUE)
+
+#filling the missing values of the column with the mean values of the columns
+viz3$LOCATION_LONGITUDE[is.na(viz3$LOCATION_LONGITUDE)]<-mean(viz3$LOCATION_LONGITUDE,na.rm=TRUE)
+
+#plotting the date in the right format
+viz3$INCIDENT_DATE <- as.Date(viz3$INCIDENT_DATE, format = "%m/%d/%Y")
+
+```
+
+We will remove the values that contain the Na's values more than 60% in each column. And for other column which contain the Na's values less than 10% we will going to them with the median values.As we can see the variables that are available to use for the visualization are included in the table below .After cleaning the data set we have a total of 2383 rows and 38 column left in the data set. With 13 columns as the continuous variable and 25 are the categorical variable.
+
+
+```{r,warning=FALSE,message=FALSE}
+
+library(psych)
+describe(viz3)%>%
+  kbl() %>%
+  kable_styling()
+ 
+
+```
+
+# visualizations-
+
+In this graph we are looking at the different race of police officers who stayed at different locations and  how many years they have spent on that location. It gives us the information regarding the behaviors of police officers according to their location, and also tells us about if the particular race of officers tens to stay longer than the other race of officer on the particular location. We can see that the most spread out population of officers is of "American Ind" this can be due to the fact they are limited in number on the force , and we can see the central part of the area is dominate by the white police officers.
+
+
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+
+attach(viz3)
+#trying out some new visualisatoin
+p <- ggplot(viz3[1:1500,],aes(x=LOCATION_LATITUDE, y=LOCATION_LONGITUDE,size=OFFICER_YEARS_ON_FORCE,color=OFFICER_RACE))+
+  geom_point(alpha=0.2)+
+  ggtitle("Officers Areas according to their Race and Years spent")+
+  scale_color_brewer(palette = "GnBu",direction=-1)
+
+#Plot1
+  #scale_fill_gradient(low = "black",high = "white",breaks=12:17,guide = guide_legend())
+#got some decent visualization with the plot area
+#p+stat_density2d(aes(fill=..density..),geom = "raster",contour = FALSE)
+#ggplotly(p+stat_density2d(aes(fill=..density..),geom = "raster",contour = FALSE))
+```
+
+
+
+
+
+```{r,fig.width = 8, fig.height = 6}
+ggplotly(p)
+
+```
+
+A boxplot is a standardized way of displaying the distribution of the data set,it tells about the distribution of officers of different race and how many time they have spent on the force.It  tells us about the information regarding the outliers and spread. As we can see that Police officers with the racial background as white , tends of spend much longer time on the force then the other police officers, and at the same time we see many outliers who spent more time on the force then the normal officers.Though this pattern also matches with the officers with the racial backgroud as "Hispanic".Most of the point in both the Race lies out the area of the normal distribution. Whereas it is not the case with the other officers.
+
+
+```{r,warning=FALSE,message=FALSE}
+library(gcookbook)
+ggplot(viz3, aes(x=OFFICER_RACE,y=OFFICER_YEARS_ON_FORCE)) +
+  geom_boxplot()+
+  ggtitle(" How many years officer's of different race spent on the force")
+
+```
+
+In this graph we will going to look at the which sector has what kinds of the incident reason recorded. We will going to look at the tile chart which can provide the clear representation of the distribution of those calls along the different sectors. As we can see the "Traffic Stop" is the most common Incident that has occurred among the all sector , we can see it color distribution ranging from light to dark. The least number of calls is for the "Crowd Control" and "Accidental Discharge". Whereas "Arrest" and "call for Cover" are the most called incident reasons.
+
+
+
+
+```{r,warning=FALSE,message=FALSE}
+
+#ggplot(data=viz3, aes(y=SECTOR,x=DIVISION, fill=SUBJECT_GENDER)) +
+  #geom_bar(stat="identity") +  coord_flip()
+
+
+
+#ggplot(viz3, aes(x = viz3$SECTOR, y = viz3$INCIDENT_REASON,group=viz3$SUBJECT_WAS_ARRESTED, color = viz3$SUBJECT_WAS_ARRESTED)) +
+  #geom_line()
+
+
+
+Q<- ggplot(viz3, aes(x = SECTOR, y = INCIDENT_REASON)) +
+     geom_tile(aes(fill=STREET_NUMBER)) +
+   ggtitle("Incident Reason vs SECTOR vs Street")
+     #scale_fill_gradient(low = "white", high = "black")
+ 
+```
+
+
+
+
+```{r,fig.width = 8, fig.height = 6}
+ggplotly(Q)
+
+```
+
+
+
+
+Facet grid helps us to see multiple graphs at a one time and we can compare easily between different categories.In this graph we have tried to find out regarding the injury pattern of different officers over the years of their duty according to their gender and race.We have found out that their is positive relation between the between the age for the female white officers and how much time they spent on force,and it is same for the black female and male officers.In case for the asian female officers we did'nt find any trend realted to injury, but we can see that there is trend of injury with the asian male officers.
+
+
+
+```{r,warning=FALSE,message=FALSE,fig.dim = c(8, 6),comment=NA }
+#model <- lm(OFFICER_YEARS_ON_FORCE ~ as.factor(OFFICER_RACE),data=viz3)
+#model
+
+ggplot(viz3, aes(y = OFFICER_YEARS_ON_FORCE, x =log(STREET_NUMBER),color=OFFICER_INJURY)) + 
+  geom_point(position = position_jitter(width = .5,height = 0),shape=16,alpha=.7) +
+  geom_smooth(se = FALSE, method = "lm")+
+  facet_grid(OFFICER_GENDER~ OFFICER_RACE)
+  scale_x_continuous(breaks =c(0,5,10))
+  
+  
+
+```
+
+
+In this graph we are plotting different categorical values against each other and trying to find the relationship between them. We have the plotted the subject race against subject gender with respect to reporting area. We found that the male subject with different races reported across all the reporting areas,Whereas similar pattern can be seen with the females of black and white gender in terms of their reporting area.But it is not the case with the Hispanic female, for them we can see they have reported in all the areas.It is surprising to see that no visualization can be found for the "American Ind" and "Asian" females. 
+
+
+```{r,warning=FALSE,message=FALSE}
+
+
+S <- ggplot(data=viz3, aes(x=SUBJECT_RACE,y=SUBJECT_GENDER,size=REPORTING_AREA))+
+  geom_point(shape=21,colour="black",fill="cornsilk")+
+  ggtitle("Distribution of Subject Race and Subject Gender acc. to Area")
+
+
+```
+
+
+
+```{r,warning=FALSE,message=FALSE}
+ggplotly(S)
+
+```
+
+
+
+In this next graph we have plotted a combination of box plot and the scatter plot to show the distribution of injury among different genders and spread across multiple sectors. As the data set contains a total of 440 females, 1932 males ,10 null and 1 unknown value in it. We can see that the distribution of both male and females are equally spread out across the sector for injury , with male streaching a little more than women.
+
+
+
+```{r,warning=FALSE,message=FALSE}
+#library(reshape2)
+#library(RColorBrewer)
+
+ggplot(data = viz3, aes(x =SUBJECT_GENDER, y = SECTOR, fill = SUBJECT_INJURY, color = SUBJECT_INJURY)) +
+    geom_boxplot(alpha = 0.5) +
+    geom_point(alpha = 0.5, position = position_jitterdodge(jitter.width = 0.1, jitter.height = 0.1))+
+    ggtitle("Subject Gender vs Sector vs Subject Injury")
+
+```
+
+
+In this chart we have tried to find out the timeline of crimes that has occurred across the time period of our data set. In order to make the visualization under stable, a range of values are selected from the data set.As we can see ,we got the peak amount of crimes in the month of June,October,March and August in a descending order respectively. For rest of the year the crime rate stays mostly the same with an exception of the starting months of the year, where the crime rate stays relatively low compared to other months of the year.We can also see the activity decreasing as we move toward the end of the year.
+
+
+```{r,warning=FALSE,message=FALSE}
+#finally a time series data plotted
+ggplot(viz3[c(1:2000),], aes(x = as.Date(INCIDENT_DATE), y = REPORTING_AREA)) +
+  geom_area(fill="lightblue", color="black") +
+  labs(title = "Timeline of Crime Rate",
+       x = "Months",
+       y = "Area where crime occured")+
+  geom_smooth()
+  #ggtitle("Subject Gender vs Sector vs Subject Injury")
+
+#summary(viz3$REPORTING_AREA)
+
+```
+
+
+
+Next,We will going to look at the subject description with respect to subject gender.As we can see the subject description with "Mentally unstable" has highest amount of females in it, followed by "Unknown" and "Alcohol",whereas the male category is dominated by the most suspect description of "Alcohol","unknown","unknown Drugs"followed by "Mentally Unstable". Motor Vehicle have the lowest amount amount of subject description followed by the "Gun" and "weapon".
+
+
+
+
+```{r,warning=FALSE,message=FALSE}
+ggplot(data = viz3, aes(y = SUBJECT_DESCRIPTION, fill = SUBJECT_GENDER)) +
+    geom_bar()+
+  ggtitle("Subject Description vs Subject Gender ")
+
+```
+
+
+Here,we have plotted a correlation matrix of the columns which contain the details of the officers ,and tried to find out if there is any common point among the information of the officers.As we can see the male officers tends to stay longer on force than the female officers and the among of injury among the male officers is also higher than the females officers.It is interesting to find that on the starting years on the force for officers the level of injury is higher ,it means the younger officers tends to get more injured , but as the years on force increases then trend of injury decreases.
+
+
+
+```{r,warning=FALSE,message=FALSE}
+#plotting the correlatin matrix amoung the officers variables present in the dataset
+ggpairs(viz3[1:100,c(5,6,8,9,11)])
+
+
+```
+
+Here the pie chart represents the percentage of the subjects according to their racial background.We can see that the biggest percentage area is coved by the subjects where their racial identity is "Black" which is around 55%, the next biggest area is covered by the subjects whose racial identity is "white" which is around 20%. and rest all the subjects with different racial identities stayes below the 15%. 
+
+```{r,warning=FALSE,message=FALSE}
+percent_arrest <- as.data.frame(table(viz3$SUBJECT_RACE))
+#finding the percentage of the frequency from the datatable
+percent_arrest <- percent_arrest %>%
+                              mutate(percent = (Freq/sum(Freq))*100)
+
+names(percent_arrest)[names(percent_arrest) == "Var1"] <- "Race"
+#library(plotly)
+#R <- plot_ly(percent_arrest, aes(x = "", y = percent, fill = Race)) +
+    #geom_col() +
+    #coord_polar(theta = "y")+
+ # ggtitle("Percentage of subject race that get's arrested")
+
+```
+
+
+```{r,,warning=FALSE,message=FALSE,fig.width = 8, fig.height = 6}
+#ggplotly(R)
+
+```
+
+
+```{r}
+fig <- plot_ly(percent_arrest, labels = ~percent, values = ~Race, type = 'pie')
+fig <- fig %>% layout(title = 'United States Personal Expenditures by Categories in 1960',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
