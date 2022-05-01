@@ -113,7 +113,8 @@ vs <- aggregate(Val,list(ID),sum,na.rm=T)
 scoreSs <- sapply(c(T,F),function(o)
   vs[order(vs$x,decreasing = o)[1:5],1])
 colnames(scoreSs) <- c('Most','Least')
-scoreSs
+scoreSs #it is interesting to find out that top100 salesperson on this list account for almost 40% of the income of the company,while the bottom 2000, out of the 6016,
+                  #salesperson generate less than 2% of the income.
 
 sum(vs[order(vs$x,decreasing = T)[1:100],2])/sum(Val,na.rm = T)*100 
 
@@ -204,27 +205,30 @@ nlevels(sales$Prod)
 sales$Prod <- factor(sales$Prod)
 nlevels(sales$Prod)
 
-
+#are there salesperson with all transaction with unknown quantity
 nnasQs <- tapply(sales$Quant,list(sales$ID),function(x) sum(is.na(x)))
 propNAsQs <- nnasQs/table(sales$ID)
-propNAsQs[order(propNAsQs,decreasing=T)[1:10]]
+propNAsQs[order(propNAsQs,decreasing=T)[1:10]]#we found out that there are many salesperson who have not filled in the information on the quantity in their reports.
 
-
+#we will now carry out the similar analysis for the transaction with an unknown value in the val column
 nnasVp <- tapply(sales$Val,list(sales$Prod),
                  function(x) sum(is.na(x)))
 propNAsVp <- nnasVp/table(sales$Prod)
 propNAsVp[order(propNAsVp,decreasing=T)[1:10]]
 
-
+#the numbers are resonable so it does not make sense to delete them, transaction as we may try to fill in these holes using the other transaction with respect to 
+                 #sales person the number are as follows:
 nnasVs <- tapply(sales$Val,list(sales$ID),function(x) sum(is.na(x)))
 propNAsVs <- nnasVs/table(sales$ID)
 propNAsVs[order(propNAsVs,decreasing=T)[1:10]]
-
+#at this stage we have removed all reports that had insufficient information to be subject to a fill-in-strategy. For the remaining unknown values , we will apply a method
+                 #based on the assumption that transaction of the same product should have a similar unit price.
 
 tPrice <- tapply(sales[sales$Insp != 'fraud','Uprice'],
                  list(sales[sales$Insp != 'fraud','Prod']),
                  median,na.rm=T)
-
+#having a typical unit price for each product , we can use it to calculate any of the two possibly missing values. This is possible because we currently have no 
+                 #transaction with both the missing values
 
 noQuant <- which(is.na(sales$Quant))
 sales[noQuant,'Quant'] <- ceiling(sales[noQuant,'Val'] /
@@ -232,14 +236,17 @@ sales[noQuant,'Quant'] <- ceiling(sales[noQuant,'Val'] /
 noVal <- which(is.na(sales$Val))
 sales[noVal,'Val'] <- sales[noVal,'Quant'] *
   tPrice[sales[noVal,'Prod']]
-
+#if you have missing it we have just filled out in 12,900 unknown quantities values plus 294 total values of transaction.we have used the function ceiling() to avoid 
+                 #non-integer values of quant
 
 sales$Uprice <- sales$Val/sales$Quant
-
+#given we have all quant and val values we can recalculate the uprice column to fill in the previously unknown unit price
 
 save(sales,file='salesClean.Rdata')
 
-
+#few transaction of some products
+                 
+ #the code uses the boxplot.stats() function to obtain the values of the median, first and third quantiles
 attach(sales)
 notF <- which(Insp != 'fraud')
 ms <- tapply(Uprice[notF],list(Prod=Prod[notF]),function(x) {
@@ -252,13 +259,15 @@ ms <- matrix(unlist(ms),
 head(ms)
 
 
+ #we have obtained the figures using the log scale on both axes of the graph, we have done this to overcome the problem of visualization. 
 par(mfrow=c(1,2))
 plot(ms[,1],ms[,2],xlab='Median',ylab='IQR',main='')
 plot(ms[,1],ms[,2],xlab='Median',ylab='IQR',main='',col='grey',log="xy")
 smalls <- which(table(Prod) < 20)
 points(log(ms[smalls,1]),log(ms[smalls,2]),pch='+')
 
-
+#we will use a non-parametric test to compare the distribution of unit prices,as these tests are more robust to the presence of outliers. 
+#the kolmogorov-Sminrov test can be used to compare any two samples to check the validity of the null hypothesis that both came from the same distribution.
 dms <- scale(ms)
 smalls <- which(table(Prod) < 20)
 prods <- tapply(sales$Uprice,sales$Prod,list)
