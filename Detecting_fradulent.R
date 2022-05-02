@@ -273,7 +273,8 @@ smalls <- which(table(Prod) < 20)
 prods <- tapply(sales$Uprice,sales$Prod,list)
 similar <- matrix(NA,length(smalls),7,dimnames=list(names(smalls),
                                                     c('Simil','ks.stat','ks.p','medP','iqrP','medS','iqrS')))
-
+#the kW test is used with the help of ks.test() .This function return significant information ,amoung which we have etracted the value of the statistics of  the test and the 
+                 #respective signigicance level.
 for(i in seq(along=smalls)) {
   d <- scale(dms,dms[smalls[i],],FALSE)
   d <- sqrt(drop(d^2 %*% rep(1,ncol(d))))
@@ -288,28 +289,40 @@ head(similar)
 
 levels(Prod)[similar[1,1]]
 
-
+#we can check how many products are there whose unit price distribution is significantly similar with 90% confidence:
 nrow(similar[similar[,'ks.p'] >= 0.9,])
 
-
+#as we can see the results from the 985 products with less than 20 transaction , we have only managed to find similar products for 117 of them.
 sum(similar[,'ks.p'] >= 0.9)
 
-
+#saving that file in it.
 save(similar,file='similarProducts.Rdata')
 
 
-
+################################################################Defining the data mining task#########################################################################
 
 ###################################################
 ### Evaluation criteria
 ###################################################
+
+#clustering is the example of the discriptive data mining task. we can also use to find the outliers in our dataset, and we take the notion that they are too far form the group.
+#from this we can see that there is strong correlatin  between the outlier detection and clustering. this means that a good cluster does not include the outliers in a large group of data.                 
+#what is the semi-super vised learing that we will going to use here.
+#so in order to describe them we can say that they can use both the label and unlabeled dataset. there are many semi-supervised learing algorithm used for the classification model,
+#with the given labeled data . the next step is to use this model to classify the unlabeled data.then the new model is obtained and repeated the process until some 
+#convergence point is reached.Anothe example of the semi-surpervised learning is the TSVM, .The goal of TSVM is to obtain label for a set of unlabeled data, such as 
+#a linear bounday achieves the maximum margin on both the original labeled data and the unlabeled data.
+                 
 library(ROCR)
 data(ROCR.simple)
 pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels )
 perf <- performance(pred,'prec','rec')
 plot(perf)
 
-
+#the concept of the precision and recall ,usually there is a trade off between the precison and recall. for instance it is quite easy to obtain the 100% recall if all 
+#all the test cases are predicted as events.
+#it is important to check the performance of the model at the different levels and this may be the useful informtion when comapring them.
+                 #the precision recall curve are visual representaion of the performance of a model in terms of the precision and recall curves.
 PRcurve <- function(preds,trues,...) {
   require(ROCR,quietly=T)
   pd <- prediction(preds,trues)
@@ -341,7 +354,9 @@ CRchart(ROCR.simple$predictions, ROCR.simple$labels,
         main='Cumulative Recall Chart')
 
 
-
+########Normalized distance to a typical price
+#we will use the IQR to normalize the distance with the typical unit price of the product ,measured by the median unit price of that product. and the IQRs is the inter qutile range 
+ 
 
 avgNDTP <- function(toInsp,train,stats) {
   if (missing(train) && missing(stats)) 
@@ -370,6 +385,10 @@ avgNDTP <- function(toInsp,train,stats) {
 ###################################################
 ### Experimental Methodology
 ###################################################
+                        
+#we will be using the hold out method for our experimental comparison
+#a possibility is to use the idea of of the normalized distance to the typical unit price(NDTP) is that it is a unitless metric and thus we can 
+                        
 evalOutlierRanking <- function(testSet,rankOrder,Threshold,statsProds) {
   ordTS <- testSet[rankOrder,]
   N <- nrow(testSet)
