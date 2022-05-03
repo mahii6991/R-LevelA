@@ -631,7 +631,7 @@ plot(newData[,1],newData[,2],pch=19+as.integer(newData[,3]),main="SMOTE'd Data")
                         
 #it is a probabilistic classifer based on the baye's theorem that used very strong assumptions on the independece between the predictors. These assumptions rarely
 #holds for the real world problems - and thus the name naive . Nevertheless it has been applied to many problems that are related to the real world application.
-                        
+#             
                         
                         
                         
@@ -767,6 +767,12 @@ legend('bottomright',c('NaiveBayes','smoteNaiveBayes','ORh'),
 ###################################################
 ### AdaBoost
 ###################################################
+
+#ada boost is a learning algorithm that belongs to the class of ensemble models. These type of models are , in effect , formed by a set of base model that contribute,
+#to the prediction of the algorithm using some form of aggregation. It can improve the performace of the model. the case weighting schema used by adaboost is interesting 
+#from the perspecitive.
+                        
+                        
 library(RWeka)
 WOW(AdaBoostM1)
 
@@ -1014,3 +1020,13 @@ legend('bottomright',c('AdaBoostM1','ORh','AdaBoostM1-ST'),
        lty=c(1,1,2),col=c('black','grey','black'))
 
 
+#summary
+#outliers detection and ranking
+#clustering methods
+#semi-supervised learning
+#semi-supervised classification through self-learing
+#Imabalance class distribution and methods for handling this type of problems
+#Naive bayes classification
+#adaboost classifiers
+#precision/recall and cumulative recall curves
+#hold out experiments
