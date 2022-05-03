@@ -455,7 +455,8 @@ bp.res <- holdOut(learner('ho.BPrule',
 
 
 summary(bp.res)
-
+#the result of precision and recall are rather low. on average , only 52% of the known frauds are included in the top10% reprots of the rank produced by the bp rule
+#the extreme low values of precision means that this method is putting on the top10% position mostly unkn and ok cases.
 
 par(mfrow=c(1,2))
 info <- attr(bp.res,'itsInfo')
@@ -473,7 +474,10 @@ CRchart(PTs.bp[,,1],PTs.bp[,,2],
 ###################################################
 ### Local outlier factors (LOF)
 ###################################################
-ho.LOF <- function(form, train, test, k, ...) {
+#need to write some good explaination regarding it.
+                        
+                        
+  ho.LOF <- function(form, train, test, k, ...) {
   ntr <- nrow(train)
   all <- rbind(train,test)
   N <- nrow(all)
@@ -601,6 +605,12 @@ legend('bottomright',c('BPrule','LOF','ORh'),
 ###################################################
 ### The class imbalance problem
 ###################################################
+#the dataset is very imbalanced proportion of normal and fradulent transaction . the latter are clear minority , roughly 8.1% of the inspected reports
+#several sampling methods have been proposed to change the class imbalance of a dataset. Under-sampling methods select the small part of the majority class 
+#therby building a dataset with a more balanced class distribution. Over sampling methods works the way around. using some process to replicate the minority class
+#a succesful example is the SMOTE method l the general idea of this methods is to artificially generate the new examples of the minority class.
+                        
+                        
 data(iris)
 data <- iris[,c(1,2,5)]
 data$Species <- factor(ifelse(data$Species == 'setosa','rare','common'))
@@ -617,7 +627,19 @@ plot(newData[,1],newData[,2],pch=19+as.integer(newData[,3]),main="SMOTE'd Data")
 ###################################################
 ### Naive Bayes
 ###################################################
-nb <- function(train,test) {
+
+                        
+#it is a probabilistic classifer based on the baye's theorem that used very strong assumptions on the independece between the predictors. These assumptions rarely
+#holds for the real world problems - and thus the name naive . Nevertheless it has been applied to many problems that are related to the real world application.
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+  nb <- function(train,test) {
   require(e1071,quietly=T)
   sup <- which(train$Insp != 'unkn')
   data <- train[sup,c('ID','Prod','Uprice','Insp')]
@@ -651,7 +673,8 @@ nb.res <- holdOut(learner('ho.nb',
 
 summary(nb.res)
 
-
+#the scores are considerebly worse than the best scores obtained previously with the unsupervised methods. a possible cause of the class imbalance problem will be the
+#class imbalance problem.
 par(mfrow=c(1,2))
 info <- attr(nb.res,'itsInfo')
 PTs.nb <- aperm(array(unlist(info),dim=c(length(info[[1]]),2,3)),
